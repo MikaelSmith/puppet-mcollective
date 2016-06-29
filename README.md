@@ -5,7 +5,7 @@ This is an module to manage an already installed Puppet AIO based mcollective:
 
   * Configures the main `server.cfg` and `client.cfg` and service
   * Provides a mcollective plugin packager that produce AIO specific modules of mco plugins
-  * Installs a number of default puppet related plugins
+  * Installs a number of default puppet related plugins including the `action_policy` authorization plugin
   * Creates directories the AIO packages failed to create
 
 It's part of a larger effort to make bootstrapping trivial, to that goal a new Security
@@ -48,6 +48,55 @@ mcollective::plugin_classes:
 ```
 
 Or you can just install them however you prefer.
+
+Authorization
+-------------
+
+Authorization using the `actionpolicy` plugin is setup automatically and configured to default
+deny all requests made from clients.
+
+Agent plugins can declare their own default rule sets - which should allow non destructive
+actions by default. For example the `service` agent should allow `status` but not `stop`,
+`start` or `restart`.
+
+You can delcare a site policy - for example to give your admins access to all actions on all
+agents.  And you can define per module policy.  All via Hiera
+
+The default applied to all modules can be set site wide:
+
+```yaml
+mcollective::policy_default: allow
+```
+
+You can then specify a site wide policy, here I let myself access everything on all agents:
+
+```yaml
+mcollective::site_policies:
+- action: "allow"
+  callers: "cert=rip.mcollective"
+  actions: "*"
+  facts: "*"
+  classes: "*"
+```
+
+Site wide policies are applied *after* agent specific ones, be aware of that when constructing
+site rules.
+
+Specific policies can be specified per agent - but note they override the agent specific default
+policies so if you specify any you have to specify all:
+
+```yaml
+mcollective_agent_puppet::policy_default: allow
+mcollective_agent_puppet::policies:
+- action: "allow"
+  callers: "cert=developer.mcollective"
+  actions: "*"
+  facts: "environment=development"
+  classes: "*"
+```
+
+In this way plugins can check their default policy into their repo using the `.plugin.yaml` file,
+more on that below.
 
 Plugin Packaging
 ----------------
